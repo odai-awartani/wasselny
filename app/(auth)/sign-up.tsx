@@ -8,6 +8,8 @@ import { icons, images } from '@/constants';
 import { Link, router } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo'; // استيراد useSignUp من Clerk
 import ReactNativeModal from 'react-native-modal'
+
+import { StatusBar } from 'expo-status-bar';
 import { fetchAPI } from '@/lib/fetch';
 
 
@@ -137,6 +139,7 @@ const industryMap = new Map([
           gender: englishGender,
           industry: englishIndustry,
           clerkId: completeSignUp.createdUserId,
+          
         });
   
         // استدعاء API مع استخدام URL صحيح  
@@ -428,7 +431,10 @@ const industryMap = new Map([
 
 
       </View>
+    <StatusBar backgroundColor="#fff" style="dark" />
+      
     </ScrollView>
+
   );
 };
 

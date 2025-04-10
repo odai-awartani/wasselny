@@ -66,6 +66,7 @@ declare interface GoogleInputProps {
   icon?: string;
   initialLocation?: string;
   containerStyle?: string;
+  placeholder?: string;
   textInputBackgroundColor?: string;
   handlePress: ({
     latitude,
@@ -87,6 +88,10 @@ declare interface InputFieldProps extends TextInputProps {
   inputStyle?: string;
   iconStyle?: string;
   className?: string;
+  isPhoneNumber?: boolean;
+  placeholder?: any; // ✅ اضف هذا السطر
+
+  
 }
 
 declare interface PaymentProps {
@@ -137,3 +142,55 @@ declare interface DriverCardProps {
   selected: number;
   setSelected: () => void;
 }
+declare interface UserUnsafeMetadata {
+  gender?: string;
+  phoneNumber?: string;
+  workIndustry?: string;
+}
+
+declare interface User {
+  id: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  emailAddresses: string[];
+  imageUrl: string;
+  unsafeMetadata: UserUnsafeMetadata;
+  // أي حقول إضافية من Clerk مثل:
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SuggestedRide {
+  id: string;
+  origin_address: string;
+  destination_address: string;
+  origin_longitude: number;
+  origin_latitude: number;
+  destination_longitude: number;
+  destination_latitude: number;
+  ride_time: string; // أو يمكن استخدام نوع Date إذا كان الوقت هو تاريخ كامل
+  driver: Driver;
+  payment_status: 'paid' | 'unpaid'; // حالة الدفع
+  created_at: string; // تاريخ الإنشاء
+}
+
+declare interface  Ride  {
+    id: string;
+    origin_address: string;
+    destination_address: string;
+    created_at: string;
+    ride_time: string;
+    destination_longitude: number;
+    destination_latitude: number;
+    driver: {
+      first_name: string;
+      last_name: string;
+      profile_picture: string;
+      car_seats: number;
+    };
+    payment_status: string;
+    driver_rating: number;
+
+    
+  };

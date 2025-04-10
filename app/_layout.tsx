@@ -1,5 +1,5 @@
 
-
+import { ClerkLoaded, ClerkProvider } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -10,15 +10,7 @@ import { tokenCache } from "@/lib/auth";
 import { LogBox } from "react-native";
 SplashScreen.preventAutoHideAsync();
 
-
-
-
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo'
-
-
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!
-
-
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
   throw new Error(

@@ -105,6 +105,10 @@ export const translations = {
     PaymentMethod: "طريقة الدفع",
     PaymentAmount: "مبلغ الدفع",
     PaymentDate: "تاريخ الدفع",
+    invalidEmail: "الرجاء إدخال بريد إلكتروني صحيح",
+  weakPassword: "كلمة المرور يجب أن تحتوي على الأقل 6 أحرف",
+  emailAlreadyInUse: "هذا البريد الإلكتروني مسجل بالفعل",
+  signUpError: "حدث خطأ أثناء التسجيل"
    
      
 
@@ -210,6 +214,10 @@ export const translations = {
       CarSeats: "Car Seats",
 
       PaymentStatus: "Payment Status",
+      invalidEmail: "Please enter a valid email address",
+   weakPassword: "Password should be at least 6 characters",
+  emailAlreadyInUse: "This email is already registered",
+  signUpError: "An error occurred during sign up"
       
       
 

@@ -3,6 +3,8 @@ import { View, Text, TextInput, ScrollView, Image, TouchableOpacity } from 'reac
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+
+
 const originalChats = [
   {
     id: 1,

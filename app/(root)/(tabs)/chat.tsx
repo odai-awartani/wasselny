@@ -1,222 +1,247 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useUser } from '@clerk/clerk-expo';
+import { findOrCreateChat } from '@/lib/chat';
+import ConversationItem from '@/components/chat/ConversationItem';
+import { icons } from '@/constants';
+import type { Chat as ChatType, LastMessage } from '@/types/type';
 
+interface BaseChat {
+  id: string;
+  participants: string[];
+  lastMessage: LastMessage | null;
+  lastMessageTime: Timestamp;
+  unreadCount: { [key: string]: number };
+}
 
+interface Chat extends BaseChat {
+  name?: string;
+  avatar?: string;
+}
 
-const originalChats = [
-  {
-    id: 1,
-    name: 'George Alan',
-    message: 'Lorem ipsum dolor sit amet consect...',
-    time: '4:30 PM',
-    avatar: require('@/assets/images/Hamza.jpg'),
-    unread: 4,
-    icon: null,
-    subtitle: null,
-    status: 'online'
-  },
-  {
-    id: 2,
-    name: 'Uber Cars',
-    message: '',
-    time: '4:30 PM',
-    avatar: require('@/assets/images/Hamza.jpg'),
-    unread: 1,
-    icon: 'form-select',
-    subtitle: 'Form',
-    status: null
-  },
-  {
-    id: 3,
-    name: 'Safiya Fareena',
-    message: '',
-    time: '4:30 PM',
-    avatar: 'https://randomuser.me/api/portraits/women/3.jpg',
-    unread: 1,
-    icon: 'calendar-month',
-    subtitle: 'Scheduler',
-    status: 'online'
-  },
-  {
-    id: 4,
-    name: 'Robert Allen',
-    message: 'You unblocked this user',
-    time: '4:30 PM',
-    avatar: 'https://randomuser.me/api/portraits/men/4.jpg',
-    unread: 0,
-    icon: null,
-    subtitle: null,
-    status: 'online'
-  },
-  {
-    id: 5,
-    name: 'Epic Game',
-    message: 'John Paul: @Robert Lorem ips...',
-    time: '4:30 PM',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/5969/5969368.png',
-    unread: 24,
-    icon: null,
-    subtitle: null,
-    status: 'mention'
-  },
-  {
-    id: 6,
-    name: 'Scott Franklin',
-    message: 'Audio',
-    time: 'Yesterday',
-    avatar: null,
-    unread: 0,
-    icon: 'microphone-outline',
-    subtitle: 'Audio',
-    status: 'error'
-  },
-  {
-    id: 7,
-    name: 'Muhammed',
-    message: 'Poll',
-    time: 'Yesterday',
-    avatar: 'https://randomuser.me/api/portraits/men/7.jpg',
-    unread: 0,
-    icon: 'poll',
-    subtitle: 'Poll',
-    status: null
-  },
-];
+interface Driver {
+  id: string;
+  name?: string;
+  email?: string;
+  profile_image_url?: string;
+}
 
 export default function ChatListScreen() {
   const router = useRouter();
+  const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredChats, setFilteredChats] = useState(originalChats);
+  const [chats, setChats] = useState<ChatType[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Filter chats based on search query
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredChats(originalChats);
+    fetchChats();
+  }, [user]);
+
+  const fetchChats = async () => {
+    if (!user) return;
+
+    try {
+      const chatsRef = collection(db, 'chats');
+      const q = query(chatsRef, where('participants', 'array-contains', user.id));
+      const querySnapshot = await getDocs(q);
+
+      const chatsList = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const metadata = data.metadata?.[user.id] || {};
+        const chat: ChatType = {
+          id: doc.id,
+          name: metadata.name || 'Chat',
+          avatar: metadata.avatar || '',
+          lastMessage: data.lastMessage || null,
+          lastMessageTime: data.lastMessageTime,
+          unreadCount: data.unreadCount?.[user.id] || 0,
+          participants: data.participants || []
+        };
+        return chat;
+      });
+
+      setChats(chatsList);
+    } catch (error) {
+      console.error('Error fetching chats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchDrivers = async (query: string) => {
+    if (!query.trim()) {
+      setDrivers([]);
       return;
     }
 
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = originalChats.filter(chat => {
-      const nameMatch = chat.name.toLowerCase().includes(query);
-      const messageMatch = chat.message && chat.message.toLowerCase().includes(query);
-      const subtitleMatch = chat.subtitle && chat.subtitle.toLowerCase().includes(query);
+    try {
+      const driversRef = collection(db, 'users');
+      const q = query.toLowerCase();
+      const querySnapshot = await getDocs(driversRef);
       
-      return nameMatch || messageMatch || subtitleMatch;
-    });
-    
-    setFilteredChats(filtered);
-  }, [searchQuery]);
+      const driversList = querySnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          // Only include users who are drivers
+          if (!data.driver) return null;
+          
+          const name = data.name || '';
+          if (name.toLowerCase().includes(q)) {
+            return {
+              id: doc.id,
+              name: data.name,
+              email: data.email,
+              profile_image_url: data.driver.profile_image_url
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as Driver[];
 
-  const handleChatPress = (chat) => {
-    // Handle both string URLs and local image requires
-    let avatarUri = '';
-    if (chat.avatar) {
-      if (typeof chat.avatar === 'string') {
-        avatarUri = chat.avatar;
-      }
+      setDrivers(driversList);
+    } catch (error) {
+      console.error('Error searching drivers:', error);
     }
-
-    router.push({
-      pathname: '/[id]',
-      params: {
-        id: chat.id.toString(),
-        name: chat.name,
-        avatar: avatarUri,
-      },
-    });
   };
 
-  // Handle search input changes
-  const handleSearch = (text) => {
+  const handleDriverPress = async (driver: Driver) => {
+    if (!user) return;
+
+    try {
+      const chatId = await findOrCreateChat(
+        {
+          id: user.id,
+          fullName: user.fullName || 'User',
+          firstName: user.firstName || 'User',
+          lastName: user.lastName || '',
+          emailAddresses: user.emailAddresses || [],
+          imageUrl: user.imageUrl || '',
+          unsafeMetadata: user.unsafeMetadata || {},
+          createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: user.updatedAt?.toISOString() || new Date().toISOString()
+        },
+        {
+          id: driver.id,
+          fullName: driver.name || '',
+          firstName: driver.name?.split(' ')[0] || '',
+          lastName: driver.name?.split(' ')[1] || '',
+          emailAddresses: [{ emailAddress: driver.email || '' }],
+          imageUrl: driver.profile_image_url || '',
+          unsafeMetadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      );
+
+      if (chatId) {
+        router.push({
+          pathname: "/(root)/chat/[id]",
+          params: { 
+            id: chatId,
+            name: driver.name || 'Driver',
+            avatar: driver.profile_image_url || '',
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error creating chat with driver:', error);
+    }
+  };
+
+  const handleSearch = (text: string) => {
     setSearchQuery(text);
+    searchDrivers(text);
   };
 
-  // Clear search query
-  const clearSearch = () => {
-    setSearchQuery('');
+  const handleChatPress = (chat: ChatType) => {
+    router.push({
+      pathname: "/(root)/chat/[id]",
+      params: { 
+        id: chat.id,
+        name: chat.name,
+        avatar: chat.avatar
+      }
+    });
   };
 
   return (
     <View className="flex-1 bg-white px-4 pt-10">
-      <Text className="text-xl font-bold mb-4">Recent chats</Text>
+      <Text className="text-xl font-bold mb-4 text-right">المحادثات الأخيرة</Text>
 
       {/* Search */}
-      <View className="mb-4 rounded-xl bg-gray-100 px-4 py-2 flex-row items-center">
-        <Ionicons name="search" size={20} color="gray" />
-        <TextInput 
-          placeholder="Search"
-          className="flex-1 text-base px-2" 
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={clearSearch}>
-            <Ionicons name="close-circle" size={20} color="gray" />
-          </TouchableOpacity>
-        )}
+      <View className="mt-12 mb-4">
+        <View className="flex-row items-center bg-gray-100 rounded-full px-4 py-2">
+          <TextInput
+            placeholder="ابحث عن السائقين..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+            className="flex-1 text-right font-CairoBold"
+            style={{ textAlign: 'right' }}
+          />
+          <Image source={icons.search} className="w-5 h-5 ml-2" />
+        </View>
       </View>
 
-      {/* No results message */}
-      {filteredChats.length === 0 && searchQuery.length > 0 && (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500 text-lg">No chats found</Text>
-          <Text className="text-gray-400 text-base mt-2">Try a different search term</Text>
+      {/* Search Results - Drivers */}
+      {drivers.length > 0 && (
+        <View className="mb-4">
+          <Text className="text-lg font-CairoBold mb-2 text-right">السائقين</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {drivers.map((driver) => (
+              <TouchableOpacity
+                key={driver.id}
+                onPress={() => handleDriverPress(driver)}
+                className="ml-4 items-center"
+              >
+                <View className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+                  {driver.profile_image_url ? (
+                    <Image
+                      source={{ uri: driver.profile_image_url }}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <View className="w-full h-full bg-purple-500 items-center justify-center">
+                      <Text className="text-white text-lg">
+                        {driver.name?.[0]?.toUpperCase() || 'D'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-sm mt-1 font-CairoBold">{driver.name || 'سائق'}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 
+      {/* No results message */}
+      {chats.length === 0 && drivers.length === 0 && searchQuery.length > 0 && (
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-500 text-lg font-CairoBold">لا توجد نتائج</Text>
+          <Text className="text-gray-400 text-base mt-2 font-CairoBold">جرب كلمة بحث مختلفة</Text>
+        </View>
+      )}
+
+      {/* Empty state */}
+      {chats.length === 0 && drivers.length === 0 && searchQuery.length === 0 && (
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-500 text-lg font-CairoBold">لا توجد محادثات</Text>
+          <Text className="text-gray-400 text-base mt-2 font-CairoBold">ابحث عن السائقين للبدء في الدردشة</Text>
+        </View>
+      )}
+
+      {/* Chats */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {filteredChats.map((chat) => (
-          <TouchableOpacity 
-            key={chat.id} 
-            className="flex-row items-center py-3 border-b border-gray-100"
-            onPress={() => handleChatPress(chat)}
-          >
-            {/* Avatar */}
-            {chat.avatar ? (
-              typeof chat.avatar === 'string' ? (
-                <Image source={{ uri: chat.avatar }} className="w-12 h-12 rounded-full" />
-              ) : (
-                <Image source={chat.avatar} className="w-12 h-12 rounded-full" />
-              )
-            ) : (
-              <View className="w-12 h-12 rounded-full bg-purple-200 items-center justify-center">
-                <Text className="text-lg font-semibold text-orange-800">{chat.name[0]}</Text>
-              </View>
-            )}
-
-            <View className="flex-1 ml-3">
-              <View className="flex-row justify-between items-center">
-                <Text className="font-medium text-base">{chat.name}</Text>
-              </View>
-              <View className="flex-row items-center">
-                {chat.icon && (
-                  <MaterialCommunityIcons
-                    name={chat.icon}
-                    size={16}
-                    color={chat.status === 'error' ? 'red' : 'gray'}
-                    className="mr-1"
-                  />
-                )}
-                <Text className="text-sm text-gray-500 truncate">
-                  {chat.subtitle ? `${chat.subtitle}` : chat.message}
-                </Text>
-              </View>
-            </View>
-
-            {/* Right side: unread count, time, and status indicators */}
-            <View className="flex-row items-center">
-              {chat.unread > 0 && (
-                <View className="mr-2 bg-orange-500 px-2 py-1 rounded-full">
-                  <Text className="text-xs text-white font-semibold">{chat.unread}</Text>
-                </View>
-              )}
-              <Text className="text-xs text-gray-400 mr-2">{chat.time}</Text>
-              {chat.status === 'online' && <View className="w-3 h-3 rounded-full bg-green-500" />}
-              {chat.status === 'mention' && <View className="w-3 h-3 rounded-full bg-orange-500" />}
-            </View>
-          </TouchableOpacity>
+        {chats.map((chat) => (
+          <ConversationItem 
+            key={chat.id}
+            chat={chat}
+            onPress={handleChatPress}
+          />
         ))}
       </ScrollView>
     </View>

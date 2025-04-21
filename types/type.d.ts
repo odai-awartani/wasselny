@@ -149,17 +149,48 @@ declare interface UserUnsafeMetadata {
   workIndustry?: string;
 }
 
-declare interface User {
+export interface User {
   id: string;
-  fullName: string;
-  firstName: string;
-  lastName: string;
-  emailAddresses: string[];
+  fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  emailAddresses: { emailAddress: string }[];
   imageUrl: string;
-  unsafeMetadata: UserUnsafeMetadata;
-  // أي حقول إضافية من Clerk مثل:
+  unsafeMetadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  timestamp: {
+    toDate: () => Date;
+  };
+  sent?: boolean;
+}
+
+export interface LastMessage {
+  text: string;
+  senderId: string;
+  senderName: string;
+}
+
+export interface Chat {
+  id: string;
+  participants: string[];
+  lastMessage: LastMessage | null;
+  lastMessageTime: {
+    toDate: () => Date;
+  };
+  unreadCount: {
+    [userId: string]: number;
+  };
+  // Optional fields for UI
+  name?: string;
+  avatar?: string;
 }
 
 export interface SuggestedRide {

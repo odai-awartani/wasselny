@@ -1,13 +1,14 @@
-
-import { ClerkLoaded, ClerkProvider } from "@clerk/clerk-expo";
+import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import "react-native-reanimated";
 import { LanguageProvider } from '@/context/LanguageContext';
 import { tokenCache } from "@/lib/auth";
 import { LogBox } from "react-native";
+import { setupNotifications, setupNotificationHandler } from "@/lib/notifications";
+
 SplashScreen.preventAutoHideAsync();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
@@ -18,13 +19,42 @@ if (!publishableKey) {
   );
 }
 LogBox.ignoreLogs(["Clerk:"]);
+
+function InitialLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    // Always redirect to home page for now
+    router.replace("/");
+  }, [isLoaded]);
+
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(root)" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
+
+function NotificationInitializer() {
+  const { userId } = useAuth();
+
+  useEffect(() => {
+    if (userId) {
+      setupNotifications(userId);
+    }
+  }, [userId]);
+
+  return null;
+}
+
 export default function RootLayout() {
-
- 
-
-
-
-
   const [loaded] = useFonts({
     "Jakarta-Bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
     "Jakarta-ExtraBold": require("../assets/fonts/PlusJakartaSans-ExtraBold.ttf"),
@@ -41,13 +71,12 @@ export default function RootLayout() {
     "Cairo-Medium": require("../assets/fonts/Cairo-Medium.ttf"),
     "Cairo-Regular": require("../assets/fonts/Cairo-Regular.ttf"),
     "Cairo-SemiBold": require("../assets/fonts/Cairo-SemiBold.ttf"),
-   
-
   });
 
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+      setupNotificationHandler();
     }
   }, [loaded]);
 
@@ -56,21 +85,13 @@ export default function RootLayout() {
   }
 
   return (
-  <LanguageProvider>
-  <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-    <ClerkLoaded>
-      
-       
-        <Stack>
-           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(root)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        
-     
-  </ClerkLoaded> 
-</ClerkProvider>
-</LanguageProvider>
+    <LanguageProvider>
+      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+        <ClerkLoaded>
+          <NotificationInitializer />
+          <InitialLayout />
+        </ClerkLoaded> 
+      </ClerkProvider>
+    </LanguageProvider>
   );
 }

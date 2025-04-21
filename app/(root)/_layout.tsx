@@ -14,6 +14,8 @@ const RootLayout = () => {
                <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="[id]" options={{ headerShown: false }} />
               <Stack.Screen name="locationInfo" options={{ headerShown: false }} />
+              <Stack.Screen name="ride-details" options={{ headerShown: false }} />
+              <Stack.Screen name="driver-profile" options={{ headerShown: false }} />
 
 
                

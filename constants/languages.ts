@@ -86,7 +86,7 @@ export const translations = {
  
     passwordResetSuccess: "تم إعادة تعيين كلمة المرور بنجاح.",
     passwordResetFailed: "فشل إعادة تعيين كلمة المرور. يرجى المحاولة مرة أخرى.",
-    
+    confirmPassward:"تاكيد كلمة المرور",
     resetPasswordButton: "إعادة تعيين كلمة المرور",
     
     
@@ -95,20 +95,6 @@ export const translations = {
 
   
     logout: "تسجيل الخروج",
-    RecentRides: "الرحلات الحديثة",
-    Welcome: "مرحبا",
-    YourCurrentLocation: "موقعك الحالي",
-    DateandTime: "التاريخ والوقت",
-    Driver: "سائق",
-    CarSeats: "مقاعد السيارة",
-    PaymentStatus: "حالة الدفع",
-    PaymentMethod: "طريقة الدفع",
-    PaymentAmount: "مبلغ الدفع",
-    PaymentDate: "تاريخ الدفع",
-    invalidEmail: "الرجاء إدخال بريد إلكتروني صحيح",
-  weakPassword: "كلمة المرور يجب أن تحتوي على الأقل 6 أحرف",
-  emailAlreadyInUse: "هذا البريد الإلكتروني مسجل بالفعل",
-  signUpError: "حدث خطأ أثناء التسجيل"
    
      
 
@@ -198,7 +184,7 @@ export const translations = {
       verificationCode: "Verification Code",
       newPassword: "New Password",
       resetPasswordButton: "Reset Password",
-     
+      confirmPassward:"confirm Passward",
       passwordResetSuccess: "Password reset successfully.",
       passwordResetFailed: "Failed to reset password. Please try again.",
       passwordResetLinkSent: "A password reset link has been sent to your email.",
@@ -206,21 +192,6 @@ export const translations = {
       
       passwordResetSuccessDescription: "You can now log in using your new password.",
       logout: "Logout",
-      RecentRides: "Recent Rides",
-      Welcome: "Welcome",
-      YourCurrentLocation: "Your Current Location",
-      DateandTime: "Date & Time",
-      Driver: "Driver",
-      CarSeats: "Car Seats",
-
-      PaymentStatus: "Payment Status",
-      invalidEmail: "Please enter a valid email address",
-   weakPassword: "Password should be at least 6 characters",
-  emailAlreadyInUse: "This email is already registered",
-  signUpError: "An error occurred during sign up"
-      
-      
-
 
      
       

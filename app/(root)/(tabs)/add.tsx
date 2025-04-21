@@ -5,12 +5,13 @@ import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "@/lib/upload";
 import { useRouter } from "expo-router";
 import CustomButton from "@/components/CustomButton";
-import { icons } from "@/constants";
+import { icons, images } from "@/constants";
 import { useUser } from "@clerk/clerk-expo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import InputField from "@/components/InputField";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
+import { ActivityIndicator } from "react-native";
 
 interface DriverFormData {
   carType: string;
@@ -48,34 +49,28 @@ const Add = () => {
         return;
       }
 
-      console.log("Checking driver status for user:", user.id);
-      
-      // Get user document from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.id));
+      const userRef = doc(db, 'users', user.id);
+      const userDoc = await getDoc(userRef);
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        
-        // Check if user has driver data
-        if (userData.driver && userData.driver.is_active) {
-          console.log("User is a driver, redirecting to locationInfo");
-          await AsyncStorage.setItem('driverData', JSON.stringify(userData.driver));
+        if (userData.driver?.is_active) {
+          // If already a driver, redirect to locationInfo
           router.replace({
             pathname: "/(root)/locationInfo",
-            params: { driverId: user.id },
+            params: { driverId: user.id }
           });
           return;
         }
       }
-
-      console.log("User is not a driver, requesting media permissions");
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("تحذير", "يجب منح صلاحيات الوصول إلى المعرض");
-      }
+      
+      // If not a driver, redirect to home
+      router.replace("/(root)/(tabs)/home");
+      
     } catch (error: any) {
       console.error("Error checking driver status:", error);
       Alert.alert("خطأ", "حدث خطأ أثناء التحقق من حالة السائق");
+      router.replace("/(root)/(tabs)/home");
     } finally {
       setIsDriverChecked(true);
     }
@@ -168,10 +163,25 @@ const Add = () => {
       // Get user reference using Clerk ID
       const userRef = doc(db, "users", user?.id!);
       
-      // Update the existing user document with driver data
-      await updateDoc(userRef, {
-        driver: driverData
-      });
+      // Check if user document exists
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        // Update the existing user document with driver data
+        await updateDoc(userRef, {
+          driver: driverData
+        });
+      } else {
+        // Create a new user document with driver data
+        await setDoc(userRef, {
+          userId: user?.id,
+          email: user?.primaryEmailAddress?.emailAddress,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          createdAt: new Date().toISOString(),
+          driver: driverData
+        });
+      }
 
       // Save to AsyncStorage for local access
       await AsyncStorage.setItem('driverData', JSON.stringify(driverData));
@@ -192,9 +202,20 @@ const Add = () => {
 
   if (!isDriverChecked) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text className="text-xl text-gray-600">جارٍ التحقق من البيانات...</Text>
-      </View>
+      <SafeAreaView className="flex-1 items-center justify-center bg-white px-4">
+        <Image
+          source={images.loadingcar} // تأكد إنك تضيف صورة gif مناسبة داخل مجلد الصور
+          className="w-40 h-40 mb-6"
+          resizeMode="contain"
+        />
+        <Text className="text-xl font-CairoBold text-orange-500 mb-2">
+          جاري التحقق من بياناتك...
+        </Text>
+        <Text className="text-base text-gray-500 text-center">
+          برجاء الانتظار قليلاً أثناء التحقق من حالة حسابك كسائق
+        </Text>
+        <ActivityIndicator size="large" color="#F97316" className="mt-6" />
+      </SafeAreaView>
     );
   }
 

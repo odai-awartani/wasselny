@@ -51,11 +51,14 @@ export default function ChatListScreen() {
 
       const chatsList = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        const metadata = data.metadata?.[user.id] || {};
+        // Find the other participant's ID
+        const otherParticipantId = data.participants.find((id: string) => id !== user.id);
+        // Get the metadata for the other participant
+        const otherParticipantMetadata = data.metadata?.[otherParticipantId] || {};
         const chat: ChatType = {
           id: doc.id,
-          name: metadata.name || 'Chat',
-          avatar: metadata.avatar || '',
+          name: otherParticipantMetadata.name || 'Chat',
+          avatar: otherParticipantMetadata.avatar || '',
           lastMessage: data.lastMessage || null,
           lastMessageTime: data.lastMessageTime,
           unreadCount: data.unreadCount?.[user.id] || 0,

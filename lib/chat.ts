@@ -29,25 +29,23 @@ export const findOrCreateChat = async (currentUser: User, otherUser: User) => {
     // Create new chat if none exists
     const chatData = {
       participants: [currentUser.id, otherUser.id],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      metadata: {
+        [currentUser.id]: {
+          name: otherUser.fullName || otherUser.firstName || 'Chat',
+          avatar: otherUser.imageUrl || '',
+        },
+        [otherUser.id]: {
+          name: currentUser.fullName || currentUser.firstName || 'Chat',
+          avatar: currentUser.imageUrl || '',
+        }
+      },
       lastMessage: null,
       lastMessageTime: serverTimestamp(),
       unreadCount: {
         [currentUser.id]: 0,
         [otherUser.id]: 0
-      },
-      name: otherUser.fullName || otherUser.firstName || 'Chat',
-      avatar: otherUser.imageUrl || '',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      metadata: {
-        [currentUser.id]: {
-          name: currentUser.fullName || currentUser.firstName || 'User',
-          avatar: currentUser.imageUrl || ''
-        },
-        [otherUser.id]: {
-          name: otherUser.fullName || otherUser.firstName || 'Driver',
-          avatar: otherUser.imageUrl || ''
-        }
       }
     };
 

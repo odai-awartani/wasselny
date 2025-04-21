@@ -80,14 +80,15 @@ export default function ConversationScreen() {
     const chatUnsubscribe = onSnapshot(chatRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data() as DocumentData;
+        const metadata = data.metadata?.[user.id] || {};
         setChatData({
           id: doc.id,
           participants: data.participants || [],
           lastMessage: data.lastMessage || null,
           lastMessageTime: data.lastMessageTime,
           unreadCount: data.unreadCount || {},
-          name: data.name || name,
-          avatar: data.avatar || avatar
+          name: metadata.name || name,
+          avatar: metadata.avatar || avatar
         });
       }
     });

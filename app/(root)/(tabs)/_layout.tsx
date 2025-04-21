@@ -100,6 +100,7 @@ const Layout = () => {
         name="chat"
         options={{
           headerShown: false,
+          title: '',
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} source={icons.chat} />
           ),

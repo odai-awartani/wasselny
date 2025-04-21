@@ -1,26 +1,27 @@
-
 import { Stack } from 'expo-router'
 import React from 'react'
 
 const RootLayout = () => {
   return (
-     <Stack>
-               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-               <Stack.Screen name="find-ride" options={{ headerShown: false }} />
-               <Stack.Screen name="confirm-ride" options={{ headerShown: false }} />
-               <Stack.Screen name="book-ride" options={{ headerShown: false }} /> 
-               <Stack.Screen name="rideInfo" options={{ headerShown: false }} /> 
-               <Stack.Screen name="carInfo" options={{ headerShown: false }} />
-               <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="locationInfo" options={{ headerShown: false }} />
-              <Stack.Screen name="ride-details" options={{ headerShown: false }} />
-              <Stack.Screen name="driver-profile" options={{ headerShown: false }} />
-
-
-               
-          
-            </Stack>
+     <Stack screenOptions={{ headerShown: false }}>
+       <Stack.Screen 
+         name="(tabs)" 
+         options={{ 
+           headerShown: false,
+           headerTitle: '',
+         }} 
+       />
+       <Stack.Screen name="find-ride" options={{ headerShown: false }} />
+       <Stack.Screen name="confirm-ride" options={{ headerShown: false }} />
+       <Stack.Screen name="book-ride" options={{ headerShown: false }} /> 
+       <Stack.Screen name="rideInfo" options={{ headerShown: false }} /> 
+       <Stack.Screen name="carInfo" options={{ headerShown: false }} />
+       <Stack.Screen name="index" options={{ headerShown: false }} />
+       <Stack.Screen name="[id]" options={{ headerShown: false }} />
+       <Stack.Screen name="locationInfo" options={{ headerShown: false }} />
+       <Stack.Screen name="ride-details" options={{ headerShown: false }} />
+       <Stack.Screen name="driver-profile" options={{ headerShown: false }} />
+     </Stack>
   )
 }
 

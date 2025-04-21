@@ -67,7 +67,14 @@ export default function ChatListScreen() {
         return chat;
       });
 
-      setChats(chatsList);
+      // Sort chats by lastMessageTime in descending order (newest first)
+      const sortedChats = chatsList.sort((a, b) => {
+        const timeA = a.lastMessageTime?.toDate().getTime() || 0;
+        const timeB = b.lastMessageTime?.toDate().getTime() || 0;
+        return timeB - timeA;
+      });
+
+      setChats(sortedChats);
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {

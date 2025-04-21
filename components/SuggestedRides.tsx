@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { collection, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { icons, images } from '@/constants';
-import { MapPin } from 'lucide-react-native';
 
 // Interfaces
 interface DriverData {
@@ -55,7 +54,7 @@ const SuggestedRides = () => {
 
       // Fetch pending rides
       const ridesRef = collection(db, 'rides');
-      const q = query(ridesRef, where('status', '==', 'pending'), limit(10));
+      const q = query(ridesRef,   where('status', 'in', ['pending','in-progress']), limit(10));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -144,7 +143,7 @@ const SuggestedRides = () => {
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold">Ride #{item.id}</Text>
             <View className="bg-green-50 px-3 py-1 rounded-full">
-              <Text className="text-green-700 text-sm">In-progress</Text>
+              <Text className="text-green-700 text-sm">{item.status}</Text>
             </View>
           </View>
 

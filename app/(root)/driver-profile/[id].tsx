@@ -159,8 +159,9 @@ const DriverProfile = () => {
                 ) : (
                   <Image
                     source={icons.chat}
-                    style={{ width: 45, height: 45 }}
-                  />
+                    style={{ width: 25, height: 25 }}
+                    className="rounded-full  bg-orange-500"
+                        />
                 )}
               </View>
             </TouchableOpacity>

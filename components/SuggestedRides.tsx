@@ -54,7 +54,7 @@ const SuggestedRides = () => {
 
       // Fetch pending rides
       const ridesRef = collection(db, 'rides');
-      const q = query(ridesRef,   where('status', 'in', ['pending','in-progress']), limit(10));
+      const q = query(ridesRef,   where('status', "==", "pending"), limit(10));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {

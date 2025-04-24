@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, Alert, Modal, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, onSnapshot, query, where, Query, setDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, onSnapshot, query, where, Query, setDoc, getDocs } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
 import { db } from '@/lib/firebase';
 import RideLayout from '@/components/RideLayout';
@@ -10,12 +10,14 @@ import RideMap from '@/components/RideMap';
 import CustomButton from '@/components/CustomButton';
 import { useAuth } from '@clerk/clerk-expo';
 import { scheduleNotification, setupNotifications, cancelNotification, sendRideStatusNotification, sendRideRequestNotification } from '@/lib/notifications';
+import { BottomSheet } from '@/components/BottomSheet';
 
 interface DriverData {
   car_seats?: number;
   car_type?: string;
   profile_image_url?: string;
   car_image_url?: string;
+  gender?: string;
 }
 
 interface UserData {
@@ -43,12 +45,16 @@ interface Ride {
   required_gender: string;
   ride_days?: string[];
   ride_number: number;
+  accepted_passengers?: { id: string; name: string }[];
+  user_id?: string;
+  passenger_name: string;
   driver?: {
     name: string;
     car_seats: number;
     profile_image_url?: string;
     car_type: string;
     car_image_url?: string;
+    gender?: string;
   };
 }
 
@@ -69,8 +75,9 @@ const DEFAULT_CAR_IMAGE = 'https://via.placeholder.com/120x80';
 
 const RideDetails = () => {
   const [pendingRequests, setPendingRequests] = useState<RideRequest[]>([]);
+  const [acceptedPassengers, setAcceptedPassengers] = useState<{ id: string; name: string }[]>([]);
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, notificationId } = useLocalSearchParams();
   const [ride, setRide] = useState<Ride | null>(null);
   const [rideRequest, setRideRequest] = useState<RideRequest | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +86,10 @@ const RideDetails = () => {
   const [showImageModal, setShowImageModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
-  const [notificationId, setNotificationId] = useState<string | null>(null);
   const { userId } = useAuth();
   const isDriver = ride?.driver_id === userId;
   const isPassenger = ride?.driver_id === userId || (ride?.available_seats ?? 0) <= 0;
+  const bottomSheetRef = useRef<any>(null);
 
   // إعداد أذونات الإشعارات
   useEffect(() => {
@@ -126,7 +133,6 @@ const RideDetails = () => {
             reminderTime,
             ride.id
           ).then((id) => {
-            setNotificationId(id);
             if (id) {
               console.log('Notification scheduled with ID:', id);
             } else {
@@ -142,11 +148,28 @@ const RideDetails = () => {
     }
   
     return () => {
-      if (notificationId) {
+      if (notificationId && typeof notificationId === 'string') {
         cancelNotification(notificationId);
       }
     };
   }, [ride]);
+
+  // Handle notification when page loads
+  useEffect(() => {
+    if (notificationId && typeof notificationId === 'string') {
+      // Mark notification as read
+      const markNotificationAsRead = async () => {
+        try {
+          const notificationRef = doc(db, 'notifications', notificationId);
+          await updateDoc(notificationRef, { read: true });
+        } catch (error) {
+          console.error('Error marking notification as read:', error);
+        }
+      };
+      markNotificationAsRead();
+    }
+  }, [notificationId]);
+
   // جلب تفاصيل الرحلة
   const fetchRideDetails = useCallback(async () => {
     try {
@@ -162,34 +185,26 @@ const RideDetails = () => {
       }
 
       const rideData = rideDocSnap.data();
+      console.log('Ride Data:', rideData);
 
       let driverInfo: UserData = { name: DEFAULT_DRIVER_NAME };
+      let passengerName = 'Unknown Passenger';
 
       if (rideData.driver_id) {
         const userDocRef = doc(db, 'users', rideData.driver_id);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           driverInfo = userDocSnap.data() as UserData;
-        } else {
-          console.warn(`User not found for driver_id: ${rideData.driver_id}`);
         }
       }
 
-      let formattedDateTime = rideData.ride_datetime || 'وقت غير معروف';
-      try {
-        const date = new Date(rideData.ride_datetime);
-        if (!isNaN(date.getTime())) {
-          formattedDateTime = date.toLocaleString('ar-EG', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true,
-          });
+      // Get passenger name if available
+      if (rideData.user_id) {
+        const passengerDocRef = doc(db, 'users', rideData.user_id);
+        const passengerDocSnap = await getDoc(passengerDocRef);
+        if (passengerDocSnap.exists()) {
+          passengerName = passengerDocSnap.data().name || 'Unknown Passenger';
         }
-      } catch {
-        console.warn('Invalid ride_datetime format');
       }
 
       const rideDetails: Ride = {
@@ -201,17 +216,19 @@ const RideDetails = () => {
         destination_latitude: rideData.destination_latitude,
         destination_longitude: rideData.destination_longitude,
         created_at: rideData.created_at,
-        ride_datetime: formattedDateTime,
+        ride_datetime: rideData.ride_datetime,
         status: rideData.status || 'غير معروف',
         available_seats: rideData.available_seats || 0,
         is_recurring: rideData.is_recurring || false,
         no_children: rideData.no_children || false,
         no_music: rideData.no_music || false,
         no_smoking: rideData.no_smoking || false,
-        required_gender: rideData.required_gender || 'أي',
+        required_gender: rideData.required_gender || 'كلاهما',
         ride_days: rideData.ride_days || [],
         ride_number: rideData.ride_number || 0,
         driver_id: rideData.driver_id,
+        user_id: rideData.user_id,
+        passenger_name: passengerName,
         driver: {
           name: driverInfo.name || DEFAULT_DRIVER_NAME,
           car_seats: driverInfo.driver?.car_seats || DEFAULT_CAR_SEATS,
@@ -283,6 +300,44 @@ const RideDetails = () => {
     return () => unsubscribe();
   }, [ride?.id, isDriver]);
 
+  // Fetch accepted passengers
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchAcceptedPassengers = async () => {
+      try {
+        const rideRequestsRef = collection(db, 'ride_requests');
+        const q = query(rideRequestsRef,
+          where('ride_id', '==', id),
+          where('status', '==', 'accepted')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const passengers: { id: string; name: string }[] = [];
+
+        for (const docSnap of querySnapshot.docs) {
+          const requestData = docSnap.data();
+          const userDocRef = doc(db, 'users', requestData.user_id);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data() as { name?: string };
+            passengers.push({
+              id: requestData.user_id,
+              name: userData.name || 'Unknown Passenger'
+            });
+          }
+        }
+
+        setAcceptedPassengers(passengers);
+      } catch (error) {
+        console.error('Error fetching accepted passengers:', error);
+      }
+    };
+
+    fetchAcceptedPassengers();
+  }, [id]);
+
   // Handle driver accepting ride request
   const handleAcceptRequest = async (requestId: string, userId: string) => {
     try {
@@ -298,6 +353,18 @@ const RideDetails = () => {
         `تم قبول طلب حجزك للرحلة من ${ride?.origin_address} إلى ${ride?.destination_address}`,
         ride?.id || ''
       );
+
+      // Update notification status
+      if (notificationId && typeof notificationId === 'string') {
+        const updateData = {
+          read: true,
+          data: {
+            status: 'accepted',
+            rideId: ride?.id || ''
+          }
+        };
+        await updateDoc(doc(db, 'notifications', notificationId), updateData);
+      }
 
       Alert.alert('✅ تم قبول طلب الحجز بنجاح');
     } catch (error) {
@@ -319,8 +386,20 @@ const RideDetails = () => {
         userId,
         'تم رفض طلب الحجز',
         `عذراً، تم رفض طلب حجزك للرحلة من ${ride?.origin_address} إلى ${ride?.destination_address}`,
-        ride?.id
+        ride?.id || ''
       );
+
+      // Update notification status
+      if (notificationId && typeof notificationId === 'string') {
+        const updateData = {
+          read: true,
+          data: {
+            status: 'rejected',
+            rideId: ride?.id || ''
+          }
+        };
+        await updateDoc(doc(db, 'notifications', notificationId), updateData);
+      }
 
       Alert.alert('✅ تم رفض طلب الحجز');
     } catch (error) {
@@ -355,7 +434,8 @@ const RideDetails = () => {
         ride.driver_id,
         userName,
         ride.origin_address,
-        ride.destination_address
+        ride.destination_address,
+        ride.id
       );
 
       Alert.alert('✅ تم إرسال طلب الحجز بنجاح');
@@ -476,6 +556,12 @@ const RideDetails = () => {
     }
   };
 
+  // Function to handle target icon press
+  const handleTargetPress = () => {
+    // Collapse the bottom sheet to show only the map
+    bottomSheetRef.current?.snapToIndex(0);
+  };
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-100">
@@ -500,149 +586,166 @@ const RideDetails = () => {
 
   return (
     <RideLayout
-      title={ride.driver?.name || DEFAULT_DRIVER_NAME}
+      title=" "
       snapPoints={["15%", "50%", "75%", "95%"]}
       origin={{ latitude: ride.origin_latitude, longitude: ride.origin_longitude }}
       destination={{ latitude: ride.destination_latitude, longitude: ride.destination_longitude }}
-      MapComponent={RideMap}
+      MapComponent={(props) => <RideMap {...props} onTargetPress={handleTargetPress} />}
+      bottomSheetRef={bottomSheetRef}
     >
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="flex-1 p-4">
-          {/* Driver Profile Link */}
-          <TouchableOpacity
-            onPress={() => router.push(`/driver-profile/${ride.driver_id}`)}
-            className="flex flex-row items-center space-x-2 mb-4"
-          >
-            <Text className="text-xs text-red-600 font-CairoBold underline">
-              (الملف الشخصي)
-            </Text>
-            <Text className="text-xl text-black-600 font-CairoBold">
-              {ride.driver?.name}
-            </Text>
-          </TouchableOpacity>
-
+      <ScrollView className="flex-1 bg-gray-100" showsVerticalScrollIndicator={false}>
+        {/* Main Card */}
+        <View className="m-4 bg-white rounded-2xl shadow-lg">
           {/* Location Section */}
-          <View className="mb-4">
-            <Text className="text-base font-semibold text-black mb-2 text-right font-CairoBold">من</Text>
-            <View className="flex-row items-center bg-gray-100 rounded-xl p-3 mb-4">
-              <Image source={icons.point} className="w-7 h-7 ml-1.5" resizeMode="contain" />
-              <Text className="flex-1 text-base text-gray-700 ml-2 text-right font-CairoBold">
-                {ride.origin_address}
-              </Text>
+          <View className="p-4">
+            {/* From */}
+            <View className="flex-row items-center space-x-3">
+              <Image source={icons.point} className="w-6 h-6" resizeMode="contain" />
+              <View>
+                <Text className="text-gray-500 text-sm font-CairoRegular">From</Text>
+                <Text className="text-black font-CairoBold">{ride.origin_address}</Text>
+              </View>
             </View>
 
-            <Text className="text-base font-semibold text-black mb-2 text-right font-CairoBold">إلى</Text>
-            <View className="flex-row items-center bg-gray-100 rounded-xl p-3 mb-4">
-              <Image source={icons.map} className="w-7 h-7 ml-1.5" resizeMode="contain" />
-              <Text className="flex-1 text-base text-gray-700 ml-2 text-right font-CairoBold">
-                {ride.destination_address}
-              </Text>
-            </View>
-          </View>
-
-          {/* Date and Time Section */}
-          <View className="mb-4">
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-200">
-              <Text className="text-base text-gray-600 text-right font-CairoBold">الوقت والتاريخ</Text>
-              <View className="flex-column">
-                <Text className="text-base text-red-700 font-medium text-right pb-2 font-CairoRegular">
-                  {ride.ride_days?.join(', ') || 'غير محدد'}
-                </Text>
-                <Text className="text-base text-gray-700 font-medium text-right font-CairoRegular">
-                  {ride.ride_datetime}
-                </Text>
+            {/* To */}
+            <View className="flex-row items-center space-x-3 mt-4">
+              <Image source={icons.map} className="w-6 h-6" resizeMode="contain" />
+              <View>
+                <Text className="text-gray-500 text-sm font-CairoRegular">To</Text>
+                <Text className="text-black font-CairoBold">{ride.destination_address}</Text>
               </View>
             </View>
           </View>
 
-          {/* Driver Section */}
-          <View className="mb-4">
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-200">
-              <Text className="text-base text-gray-600 text-right font-CairoBold">السائق</Text>
-              <Text className="text-base text-gray-700 font-medium text-right font-CairoRegular">
-                {ride.driver?.name || DEFAULT_DRIVER_NAME}
-              </Text>
+          {/* Orange Divider */}
+          <View className="mx-4">
+            <View className="h-0.5 bg-orange-500 opacity-20" />
+          </View>
+
+          {/* Date & Time and Seats Section */}
+          <View className="p-4">
+            <View className="flex-row justify-between">
+              <View>
+                <Text className="text-gray-500 text-sm font-CairoRegular">Date & Time</Text>
+                <Text className="text-black font-CairoBold">{ride.ride_datetime}</Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-gray-500 text-sm font-CairoRegular">Available Seats</Text>
+                <Text className="text-black font-CairoBold">{ride.available_seats} seats</Text>
+              </View>
             </View>
           </View>
 
-          {/* Available Seats Section */}
-          <View className="mb-4">
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-200">
-              <Text className="text-base text-gray-600 text-right font-CairoBold">عدد المقاعد المتاحة</Text>
-              <Text className="text-base text-red-600 font-medium text-right font-CairoBold">
-                {ride.available_seats}
-              </Text>
-            </View>
+          {/* Orange Divider */}
+          <View className="mx-4">
+            <View className="h-0.5 bg-orange-500 opacity-20" />
           </View>
 
-          {/* Car Section */}
-          <View className="mb-4">
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-200">
-              <Text className="text-base text-gray-600 text-right font-CairoBold">السيارة</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  if (ride.driver?.car_image_url) {
-                    setSelectedImage(ride.driver.car_image_url);
-                    setShowImageModal(true);
-                  }
-                }}
-              >
-                <Image
-                  source={{ uri: ride.driver?.car_image_url || DEFAULT_CAR_IMAGE }}
-                  className="w-32 h-20 rounded-xl"
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            </View>
+          {/* Vehicle Section */}
+          <View className="p-4">
+            <Text className="text-gray-500 text-sm font-CairoRegular mb-1">Vehicle</Text>
+            <Text className="text-black font-CairoBold mb-3">{ride.driver?.car_type || 'Tesla Model 3'}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (ride.driver?.car_image_url) {
+                  setSelectedImage(ride.driver.car_image_url);
+                  setShowImageModal(true);
+                }
+              }}
+            >
+              <Image
+                source={{ uri: ride.driver?.car_image_url || DEFAULT_CAR_IMAGE }}
+                className="w-full h-48 rounded-xl"
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
           </View>
 
-          {/* Gender Section */}
-          <View className="mb-4">
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-200">
-              <Text className="text-base text-gray-600 text-right font-CairoBold">الجنس المطلوب</Text>
-              <Text className="text-base text-gray-700 font-medium text-right font-CairoRegular">
-                {ride.required_gender === 'كلاهما' ? 'ذكر وأنثى' : ride.required_gender}
-              </Text>
-            </View>
+          {/* Orange Divider */}
+          <View className="mx-4">
+            <View className="h-0.5 bg-orange-500 opacity-20" />
           </View>
 
-          {/* Ride Rules Section */}
-          <View className="mb-4 w-full">
-            <View className="flex-row justify-between border-b border-gray-200 py-2 w-full">
-              <Text className="text-base text-gray-600 font-CairoBold text-left w-1/2">
-                قوانين الرحلة
+          {/* Preferences & Rules Section */}
+          <View className="p-4">
+            <Text className="text-gray-500 text-sm font-CairoRegular mb-2">Preferences</Text>
+            <View className="space-y-2">
+              {/* Driver Gender */}
+              <Text className="text-black font-CairoRegular">
+                {ride?.required_gender === 'ذكر' ? 'Male' : 
+                 ride?.required_gender === 'أنثى' ? 'Female' : 
+                 'Male and Female'}
               </Text>
-              <View className="flex-col items-end w-1/2">
-                {[
-                  ride.no_children && 'بدون أطفال',
-                  ride.no_music && 'بدون موسيقى',
-                  ride.no_smoking && 'بدون تدخين',
-                ]
-                  .filter(Boolean)
-                  .map((rule, index) => (
-                    <Text
-                      key={index}
-                      className="text-base text-gray-700 text-right font-CairoRegular"
-                    >
-                      {rule}
+
+              {/* Accepted Passengers */}
+              {acceptedPassengers.length > 0 && (
+                <View>
+                  <Text className="text-black font-CairoRegular mb-1">Passengers:</Text>
+                  {acceptedPassengers.map((passenger) => (
+                    <Text key={passenger.id} className="text-black font-CairoRegular ml-2">
+                      • {passenger.name}
                     </Text>
                   ))}
-                {![ride.no_children, ride.no_music, ride.no_smoking].some(Boolean) && (
-                  <Text className="text-base text-gray-700 text-right font-CairoBold">
-                    لا توجد قواعد خاصة
-                  </Text>
-                )}
-              </View>
+                </View>
+              )}
+            </View>
+
+            {/* Orange Divider */}
+            <View className="mx-4 my-4">
+              <View className="h-0.5 bg-orange-500 opacity-20" />
+            </View>
+
+            {/* Rules Section */}
+            <Text className="text-gray-500 text-sm font-CairoRegular mb-2">Rules</Text>
+            <View className="space-y-1">
+              {ride.no_smoking && (
+                <Text className="text-black font-CairoRegular">• No smoking</Text>
+              )}
+              {ride.no_children && (
+                <Text className="text-black font-CairoRegular">• Small bags only</Text>
+              )}
+              {ride.no_music && (
+                <Text className="text-black font-CairoRegular">• Pets allowed with carrier</Text>
+              )}
             </View>
           </View>
 
-          {/* Buttons Section */}
+          {/* Orange Divider */}
+          <View className="mx-4">
+            <View className="h-0.5 bg-orange-500 opacity-20" />
+          </View>
+
+          {/* Driver Profile Section - Very Soft Orange Background */}
+          <View className="bg-orange-50 p-4 rounded-b-2xl">
+            <TouchableOpacity
+              onPress={() => router.push(`/driver-profile/${ride.driver_id}`)}
+              className="flex-row items-center space-x-3"
+            >
+              <Image
+                source={{ uri: ride.driver?.profile_image_url || DEFAULT_PROFILE_IMAGE }}
+                className="w-12 h-12 rounded-full border-2 border-orange-100"
+              />
+              <View>
+                <Text className="text-lg font-CairoBold text-orange-600">{ride.driver?.name}</Text>
+                <Text className="text-orange-500 font-CairoRegular">View Profile</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Action Button - Outside the card */}
+        <View className="px-4 pb-4">
           {isDriver ? (
-            <Text className="text-red-500 text-center mt-4 font-CairoBold">
-              لا يمكنك حجز رحلتك الخاصة.
+            <Text className="text-red-500 text-center font-CairoBold">
+              You cannot book your own ride.
             </Text>
           ) : !rideRequest ? (
-            <CustomButton title="احجز الرحلة" onPress={handleBookRide} />
+            <TouchableOpacity
+              onPress={handleBookRide}
+              className="bg-orange-500 py-4 rounded-xl"
+            >
+              <Text className="text-white text-center font-CairoBold">Book This Ride</Text>
+            </TouchableOpacity>
           ) : rideRequest.status === 'waiting' ? (
             <View className="flex-row justify-between mt-4">
               <CustomButton

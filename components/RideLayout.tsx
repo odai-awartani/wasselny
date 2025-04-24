@@ -18,6 +18,7 @@ const RideLayout = ({
   origin,
   destination,
   MapComponent = Map, // استخدام الكود الأول لـ Map افتراضيًا
+  bottomSheetRef,
 }: {
   title: string;
   snapPoints?: string[];
@@ -25,8 +26,8 @@ const RideLayout = ({
   origin?: Location;
   destination?: Location;
   MapComponent?: React.ComponentType<any>;
+  bottomSheetRef?: React.RefObject<BottomSheet>;
 }) => {
-  const bottomSheetRef = useRef<BottomSheet>(null);
   const pathname = usePathname();
 
   const handleBackPress = useCallback(() => {

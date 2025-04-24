@@ -22,7 +22,7 @@ import out from "@/assets/icons/out.png";
 import person from "@/assets/icons/person.png";
 import pin from "@/assets/icons/pin.png";
 import ringred from "@/assets/icons/ring-r.png"; 
-import ring from "@/assets/icons/ring.png";
+import ring1 from "@/assets/icons/ring.png";
 import point from "@/assets/icons/point.png";
 import profile from "@/assets/icons/profile.png";
 import search from "@/assets/icons/search.png";
@@ -45,7 +45,6 @@ import upload from "@/assets/icons/upload.png";
 import street from "@/assets/icons/street.png";
 import location from "@/assets/icons/location.png";
 import loadingCar from "../assets/images/loading-car.gif";
-import zero from "@/assets/images/0.png";
 
 export const images = {
     onboarding1,
@@ -57,8 +56,7 @@ export const images = {
     noResult,
     message,
     lang,
-    loadingCar,
-    zero
+    loadingCar
 };
 
 export const icons = {
@@ -94,7 +92,7 @@ export const icons = {
     add, 
     eye,
     ringred,
-    ring,
+    ring1,
     emptystar,
     ar,
     en,

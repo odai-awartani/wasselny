@@ -1,6 +1,6 @@
 import { icons } from "@/constants";
 import { Tabs, Redirect } from "expo-router";
-import { View, Image, ImageSourcePropType } from "react-native";
+import { View, Image, ImageSourcePropType, Text } from "react-native";
 import { useEffect, useState, createContext, useContext } from "react";
 import { NotificationProvider } from '@/context/NotificationContext';
 import { useUser } from "@clerk/clerk-expo";
@@ -16,11 +16,23 @@ export const DriverStatusContext = createContext<{
   recheckDriverStatus: async () => {}
 });
 
-const TabIcon = ({ focused, source }: { focused: boolean; source: ImageSourcePropType }) => (
-  <View
-    className={`w-12 h-12 items-center justify-center rounded-full ${focused ? 'bg-orange-100' : ''}`}
-  >
-    <Image source={source} tintColor="white" resizeMode="contain" className="w-7 h-7" />
+const TabIcon = ({ focused, source, name }: { focused: boolean; source: ImageSourcePropType; name: string }) => (
+  <View className="items-center justify-center w-16">
+    <View className={`w-10 h-10 items-center justify-center rounded-full ${focused ? 'bg-orange-100' : ''}`}>
+      <Image 
+        source={source} 
+        tintColor="white" 
+        resizeMode="contain" 
+        className="w-6 h-6" 
+      />
+    </View>
+    <Text
+      className={`text-xs text-center ${focused ? 'text-orange-400 font-bold' : 'text-white'}`}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+    >
+      {name}
+    </Text>
   </View>
 );
 
@@ -86,7 +98,7 @@ const Layout = () => {
         options={{
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={icons.home} />
+            <TabIcon focused={focused} source={icons.home} name="Home" />
           ),
         }}
       />
@@ -96,7 +108,7 @@ const Layout = () => {
           title: "rides",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={icons.list} />
+            <TabIcon focused={focused} source={icons.list} name="Rides" />
           ),
         }}
       />
@@ -105,7 +117,7 @@ const Layout = () => {
         options={{
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={icons.add} />
+            <TabIcon focused={focused} source={icons.add} name="Add" />
           ),
           href: isDriver ? "/(root)/(tabs)/add" : null,
         }}
@@ -115,7 +127,7 @@ const Layout = () => {
         options={{
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={icons.chat} />
+            <TabIcon focused={focused} source={icons.chat} name="Chat" />
           ),
         }}
       />
@@ -124,7 +136,7 @@ const Layout = () => {
         options={{
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={icons.profile} />
+            <TabIcon focused={focused} source={icons.profile} name="Profile" />
           ),
         }}
       />

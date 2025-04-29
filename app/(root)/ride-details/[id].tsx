@@ -10,6 +10,7 @@ import RideMap from '@/components/RideMap';
 import CustomButton from '@/components/CustomButton';
 import { useAuth } from '@clerk/clerk-expo';
 import { scheduleNotification, setupNotifications, cancelNotification, sendRideStatusNotification, sendRideRequestNotification, startRideNotificationService, schedulePassengerRideReminder, sendCheckOutNotificationForDriver, sendRideCancellationNotification, scheduleDriverRideReminder, scheduleRideNotification } from '@/lib/notifications';
+import BottomSheet from '@gorhom/bottom-sheet';
 
 interface DriverData {
   car_seats?: number;
@@ -92,7 +93,7 @@ const RideDetails = () => {
   const { userId } = useAuth();
   const isDriver = ride?.driver_id === userId;
   const isPassenger = rideRequest && rideRequest.status === 'accepted';
-  const bottomSheetRef = useRef<any>(null);
+  const bottomSheetRef = useRef<BottomSheet>(null);
 
   // Setup notifications
   useEffect(() => {
@@ -628,6 +629,8 @@ const RideDetails = () => {
 
   // Function to handle target icon press
   const handleTargetPress = () => {
+    if (!ride) return;
+    
     // Collapse the bottom sheet to show only the map
     bottomSheetRef.current?.snapToIndex(0);
   };

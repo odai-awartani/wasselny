@@ -19,6 +19,7 @@ const RideLayout = ({
   destination,
   MapComponent = Map,
   expandSheet,
+  bottomSheetRef,
 }: {
   title: string;
   snapPoints?: string[];
@@ -27,10 +28,14 @@ const RideLayout = ({
   destination?: Location;
   MapComponent?: React.ComponentType<any>;
   expandSheet?: string;
+  bottomSheetRef?: React.RefObject<BottomSheet>;
 }) => {
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const internalBottomSheetRef = useRef<BottomSheet>(null);
   const pathname = usePathname();
   const { expandSheet: expandSheetParam } = useLocalSearchParams<{ expandSheet?: string }>();
+
+  // Use the provided ref or the internal one
+  const sheetRef = bottomSheetRef || internalBottomSheetRef;
 
   React.useEffect(() => {
     // Use a small delay to ensure the component is fully mounted
@@ -38,20 +43,20 @@ const RideLayout = ({
       if (expandSheetParam === 'true') {
         // Get the last valid index (length - 1)
         const lastIndex = (snapPoints || ['25%', '50%', '90%']).length - 1;
-        bottomSheetRef.current?.snapToIndex(lastIndex);
+        sheetRef.current?.snapToIndex(lastIndex);
       } else if (pathname === '/') {
         // Start at 90% height by default
         const lastIndex = (snapPoints || ['25%', '50%', '90%']).length - 1;
-        bottomSheetRef.current?.snapToIndex(lastIndex);
+        sheetRef.current?.snapToIndex(lastIndex);
       } else {
         // Start at 90% height by default
         const lastIndex = (snapPoints || ['25%', '50%', '90%']).length - 1;
-        bottomSheetRef.current?.snapToIndex(lastIndex);
+        sheetRef.current?.snapToIndex(lastIndex);
       }
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [pathname, expandSheetParam, snapPoints]);
+  }, [pathname, expandSheetParam, snapPoints, sheetRef]);
 
   const handleBackPress = useCallback(() => {
     console.log('Current pathname:', pathname);
@@ -68,9 +73,9 @@ const RideLayout = ({
   const handleChange = useCallback((index: number) => {
     // Prevent snapping to invalid indices
     if (index >= 0 && index < (snapPoints || ['25%', '50%', '90%']).length) {
-      bottomSheetRef.current?.snapToIndex(index);
+      sheetRef.current?.snapToIndex(index);
     }
-  }, [snapPoints]);
+  }, [snapPoints, sheetRef]);
 
   return (
     <GestureHandlerRootView className="flex-1">
@@ -88,9 +93,9 @@ const RideLayout = ({
         </View>
         <BottomSheet
           keyboardBehavior="extend"
-          ref={bottomSheetRef}
-          snapPoints={snapPoints || ['25%', '50%', '90%']}
-          index={(snapPoints || ['25%', '50%', '90%']).length - 1} // Start with the last snap point (90%)
+          ref={sheetRef}
+          snapPoints={snapPoints || ['15%', '50%', '90%']}
+          index={(snapPoints || ['15%', '50%', '90%']).length - 1} // Start with the last snap point (90%)
           enablePanDownToClose={false}
           enableOverDrag={false}
           onChange={handleChange}

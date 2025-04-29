@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View, Platform, TouchableOpacity, Image } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
@@ -21,11 +20,12 @@ interface Location {
 interface RideMapProps {
   origin?: Location;
   destination?: Location;
+  onTargetPress?: () => void;
 }
 
 const directionsAPI = process.env.EXPO_PUBLIC_DIRECTIONS_API_KEY;
 
-const RideMap = ({ origin, destination }: RideMapProps) => {
+const RideMap = ({ origin, destination, onTargetPress }: RideMapProps) => {
   const [userLocation, setUserLocation] = useState<LocationCoords | null>(null);
   const mapRef = useRef<MapView | null>(null);
 
@@ -122,22 +122,25 @@ const RideMap = ({ origin, destination }: RideMapProps) => {
       {/* زر الذهاب للموقع الحالي */}
       {userLocation && (
         <TouchableOpacity
-        onPress={() => {
-          mapRef.current?.animateToRegion({
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
-        }}
-        className="absolute right-3 top-1/3 -translate-y-1/2 bg-amber-300 p-3 rounded-full shadow-md z-10"
-      >
-        <Image
-          source={icons.target} // أيقونة الموقع
-          style={{ width: 30, height: 30 }}
-          resizeMode="contain"
-        />
-      </TouchableOpacity>
+          onPress={() => {
+            if (onTargetPress) {
+              onTargetPress();
+            }
+            mapRef.current?.animateToRegion({
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            });
+          }}
+          className="absolute right-3 top-1/3 -translate-y-1/2 bg-amber-300 p-3 rounded-full shadow-md z-10"
+        >
+          <Image
+            source={icons.target}
+            style={{ width: 30, height: 30 }}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
       )}
     </View>
   );

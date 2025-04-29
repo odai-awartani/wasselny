@@ -29,6 +29,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [isDriver, setIsDriver] = useState<boolean>(false);
   const [isCheckingDriver, setIsCheckingDriver] = useState<boolean>(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const checkIfUserIsDriver = async () => {
     if (!user?.id) {
@@ -118,6 +119,9 @@ export default function Home() {
         longitude: location.coords?.longitude,
         address: `${address[0].name}, ${address[0].region}`,
       });
+      
+      // Force SuggestedRides to refresh
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       console.error("Refresh failed:", err);
     } finally {
@@ -174,7 +178,7 @@ export default function Home() {
 
             {!isCheckingDriver && !isDriver && (
               <TouchableOpacity 
-                onPress={() => router.push('/(root)/driverinfo')}
+                onPress={() => router.push('/(root)/driverInfo')}
                 className="bg-white p-4 rounded-2xl my-5 flex-row items-center justify-between shadow-lg"
                 style={{
                   elevation: 3,
@@ -197,7 +201,7 @@ export default function Home() {
             <Text className="text-xl font-JakartaBold mt-5 mb-3">
               Suggested Rides
             </Text>
-            <SuggestedRides />
+            <SuggestedRides key={refreshKey} refreshKey={refreshKey} />
           </>
         }
         refreshControl={

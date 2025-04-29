@@ -1,6 +1,6 @@
 import React from 'react';
 import { useUser, useAuth } from "@clerk/clerk-expo";
-import { Image, Text, View, Alert } from "react-native";
+import { Image, Text, View, Alert, ScrollView, TouchableOpacity } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import RideLayout from "@/components/RideLayout";
@@ -11,6 +11,7 @@ import CustomButton from "@/components/CustomButton";
 import ReactNativeModal from "react-native-modal";
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync, sendRideStatusNotification } from "@/lib/notifications";
+import RideMap from "@/components/RideMap";
 
 interface RideRequestData {
   origin_address: string;
@@ -36,7 +37,9 @@ const BookRide = () => {
     userLongitude, 
     userLatitude,
     destinationLatitude,
-    destinationLongitude 
+    destinationLongitude,
+    setBottomSheetCollapsed,
+    setMapRegion
   } = useLocationStore();
   
   const { drivers, selectedDriver } = useDriverStore();
@@ -107,40 +110,31 @@ const BookRide = () => {
       // Handle successful booking
       setSuccess(true);
 
-      // Send immediate notification about ride confirmation
-      await sendRideStatusNotification(
-        "Ride Confirmed!",
-        `Your ride from ${userAddress} to ${destinationAddress} has been confirmed. Your driver ${driverDetails.first_name} will arrive in approximately ${formatTime(driverDetails.time)}.`
-      );
-
-      // Schedule a notification for when the driver is about to arrive
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Driver Arriving Soon!",
-          body: `Your driver ${driverDetails.first_name} is about to arrive at your pickup location.`,
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        },
-        trigger: {
-          seconds: (driverDetails.time - 5) * 60, // 5 minutes before arrival
-        },
-      });
-
     } catch (error: any) {
       console.error("Booking error:", error);
       Alert.alert(
         "Booking Failed",
         error.message || "Could not complete booking. Please try again."
       );
-
-      // Send notification about booking error
-      await sendRideStatusNotification(
-        "Ride Booking Error",
-        "An unexpected error occurred. Please try again."
-      );
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleTargetPress = () => {
+    // First collapse the bottom sheet
+    setBottomSheetCollapsed(true);
+    
+    // Then zoom to the location after a short delay
+    setTimeout(() => {
+      // Set the map region to focus on the destination
+      setMapRegion({
+        latitude: destinationLatitude,
+        longitude: destinationLongitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01
+      });
+    }, 300); // 300ms delay to allow bottom sheet to collapse
   };
 
   if (!driverDetails) {
@@ -158,76 +152,85 @@ const BookRide = () => {
     );
   }
 
-
   return (
-    <RideLayout title="Book Ride">
-      <>
+    <RideLayout 
+      title="Book Ride"
+      snapPoints={["15%", "50%", "75%", "95%"]}
+      MapComponent={RideMap}
+    >
+      <ScrollView 
+        showsVerticalScrollIndicator={true}
+        contentContainerStyle={{ 
+          flexGrow: 1,
+          paddingBottom: 20
+        }}
+      >
         <Text className="text-xl font-JakartaSemiBold mb-3">
           Ride Information
         </Text>
 
         <View className="flex flex-col w-full items-center justify-center mt-10">
-        <Image
-              source={{ uri: driverDetails?.profile_image_url }}
-              className="w-28 h-28 rounded-full"
-            />
- <View className="flex flex-row items-center justify-center mt-5 space-x-2">
-      
-       <Text className="text-lg font-JakartaSemiBold">
-           {user?.firstName} {user?.lastName}
-       </Text>
+          <Image
+            source={{ uri: driverDetails?.profile_image_url }}
+            className="w-28 h-28 rounded-full"
+          />
+          <View className="flex flex-row items-center justify-center mt-5 space-x-2">
+            <Text className="text-lg font-JakartaSemiBold">
+              {user?.firstName} {user?.lastName}
+            </Text>
 
-              <View className="flex flex-row items-center space-x-0.5">
-                <Image
-                  source={icons.star}
-                  className="w-5 h-5"
-                  resizeMode="contain"
-                />
-                <Text className="text-lg font-JakartaRegular">
-                  {driverDetails?.rating}
-                </Text>
-              </View>
-            </View>
+            <TouchableOpacity 
+              onPress={handleTargetPress}
+              className="flex flex-row items-center space-x-0.5"
+            >
+              <Image
+                source={icons.target}
+                className="w-5 h-5"
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
           </View>
-          <View className="flex flex-col w-full items-start justify-center py-3 px-5 rounded-3xl bg-general-600 mt-5">
-            <View className="flex flex-row items-center justify-between w-full border-b border-white py-3">
-              <Text className="text-lg font-JakartaRegular">Ride Price</Text>
-              <Text className="text-lg font-JakartaRegular text-[#0CC25F]">
-                ${driverDetails?.price}
-              </Text>
-            </View>
+        </View>
 
-            <View className="flex flex-row items-center justify-between w-full border-b border-white py-3">
-              <Text className="text-lg font-JakartaRegular">Pickup Time</Text>
-              <Text className="text-lg font-JakartaRegular">
-                {formatTime(driverDetails?.time!)}
-              </Text>
-            </View>
-
-            <View className="flex flex-row items-center justify-between w-full py-3">
-              <Text className="text-lg font-JakartaRegular">Car Seats</Text>
-              <Text className="text-lg font-JakartaRegular">
-                {driverDetails?.car_seats}
-              </Text>
-            </View>
+        <View className="flex flex-col w-full items-start justify-center py-3 px-5 rounded-3xl bg-general-600 mt-5">
+          <View className="flex flex-row items-center justify-between w-full border-b border-white py-3">
+            <Text className="text-lg font-JakartaRegular">Ride Price</Text>
+            <Text className="text-lg font-JakartaRegular text-[#0CC25F]">
+              ${driverDetails?.price}
+            </Text>
           </View>
 
-          <View className="flex flex-col w-full items-start justify-center mt-5">
-            <View className="flex flex-row items-center justify-start mt-3 border-t border-b border-general-700 w-full py-3">
-              <Image source={icons.to} className="w-6 h-6" />
-              <Text className="text-lg font-JakartaRegular ml-2">
-                {userAddress}
-              </Text>
-            </View>
-
-            <View className="flex flex-row items-center justify-start border-b border-general-700 w-full py-3">
-              <Image source={icons.point} className="w-6 h-6" />
-              <Text className="text-lg font-JakartaRegular ml-2">
-                {destinationAddress}
-              </Text>
-            </View>
+          <View className="flex flex-row items-center justify-between w-full border-b border-white py-3">
+            <Text className="text-lg font-JakartaRegular">Pickup Time</Text>
+            <Text className="text-lg font-JakartaRegular">
+              {formatTime(driverDetails?.time!)}
+            </Text>
           </View>
-          
+
+          <View className="flex flex-row items-center justify-between w-full py-3">
+            <Text className="text-lg font-JakartaRegular">Car Seats</Text>
+            <Text className="text-lg font-JakartaRegular">
+              {driverDetails?.car_seats}
+            </Text>
+          </View>
+        </View>
+
+        <View className="flex flex-col w-full items-start justify-center mt-5">
+          <View className="flex flex-row items-center justify-start mt-3 border-t border-b border-general-700 w-full py-3">
+            <Image source={icons.to} className="w-6 h-6" />
+            <Text className="text-lg font-JakartaRegular ml-2">
+              {userAddress}
+            </Text>
+          </View>
+
+          <View className="flex flex-row items-center justify-start border-b border-general-700 w-full py-3">
+            <Image source={icons.point} className="w-6 h-6" />
+            <Text className="text-lg font-JakartaRegular ml-2">
+              {destinationAddress}
+            </Text>
+          </View>
+        </View>
+        
         <CustomButton
           title={isLoading ? "Processing..." : "Confirm Ride"}
           className="my-10"
@@ -268,7 +271,7 @@ const BookRide = () => {
             />
           </View>
         </ReactNativeModal>
-      </>
+      </ScrollView>
     </RideLayout>
   );
 };

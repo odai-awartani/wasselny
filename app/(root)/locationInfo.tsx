@@ -6,6 +6,7 @@ import { icons } from "@/constants";
 import CustomButton from "@/components/CustomButton";
 import { router, useLocalSearchParams } from "expo-router";
 import { useLocationStore } from "@/store";
+import RideMap from "@/components/RideMap";
 
 interface Location {
   latitude: number;
@@ -47,7 +48,11 @@ const Add = () => {
     });
   }, [setDestinationLocation]);
   return (
-    <RideLayout title="Location Information" snapPoints={["40%","80% ","90%"]}>
+    <RideLayout 
+      title="Location Information" 
+      snapPoints={["15%", "50%", "75%", "95%"]}
+      MapComponent={RideMap}
+    >
       {/* From Location */}
       <View className="my-3">
         <Text className="text-lg font-JakartaSemiBold mb-3">From</Text>
@@ -84,7 +89,6 @@ const Add = () => {
             onChangeText={setStreet}
             placeholder="Enter street name"
             className="flex-1 text-right ml-2.5 mr-5 bg-transparent pt-1 pb-2  font-JakartaBold placeholder:font-CairoBold"
-            
             placeholderTextColor="gray"
           />
         </View>
